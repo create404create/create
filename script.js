@@ -10,12 +10,15 @@ function checkStatus() {
 
   document.getElementById("result").innerHTML = "Fetching data...";
 
-  Promise.all([
-    fetch(tcpaApi).then(res => res.json()),
-    fetch(personApi).then(res => res.json())
-  ])
-  .then(([tcpaData, personData]) => {
-    let resultHTML = `
+  const tcpaPromise = fetch(tcpaApi).then(res => res.json()).catch(err => null);
+  const personPromise = fetch(personApi).then(res => res.json()).catch(err => null);
+
+  Promise.all([tcpaPromise, personPromise]).then(([tcpaData, personData]) => {
+    let resultHTML = "";
+
+    // ✅ TCPA API Results
+    if (tcpaData && tcpaData.status) {
+      resultHTML += `
 📱 Phone: ${tcpaData.phone || phone}
 ✅ Status: ${tcpaData.status}
 ⚠️ Blacklist: ${tcpaData.listed}
@@ -23,12 +26,17 @@ function checkStatus() {
 📍 State: ${tcpaData.state}
 🛑 DNC National: ${tcpaData.ndnc}
 🛑 DNC State: ${tcpaData.sdnc}
-    `;
+      `;
+    } else {
+      resultHTML += "⚠️ TCPA data not available.\n";
+    }
 
-    if (personData.status === "ok" && personData.count > 0) {
+    // ✅ Person API Results
+    if (personData && personData.status === "ok" && personData.count > 0) {
       const person = personData.person[0];
       const address = person.addresses && person.addresses.length > 0 ? person.addresses[0] : {};
       resultHTML += `
+
 👤 Owner: ${person.name}
 🎂 DOB: ${person.dob} (Age: ${person.age})
 🏡 Address: ${address.home || ""}, ${address.city || ""}, ${address.state || ""} ${address.zip || ""}
@@ -37,11 +45,7 @@ function checkStatus() {
       resultHTML += `\n🔍 Owner info not available.`;
     }
 
-    document.getElementById("result").innerHTML = resultHTML.trim();
-  })
-  .catch(error => {
-    console.error("API Error:", error);
-    document.getElementById("result").innerHTML = "<p style='color:red;'>Error fetching data</p>";
+    document.getElementById("result").innerText = resultHTML.trim();
   });
 }
 
@@ -59,7 +63,7 @@ function copyResult() {
     .catch(() => alert("Failed to copy result."));
 }
 
-document.getElementById("phoneNumber").addEventListener("keyup", function(event) {
+document.getElementById("phoneNumber").addEventListener("keyup", function (event) {
   if (event.key === "Enter") {
     checkStatus();
   }
